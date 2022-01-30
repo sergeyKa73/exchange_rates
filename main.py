@@ -37,7 +37,7 @@ def get_content(html):
 
 # Сохраняем в файл csv
 def save_doc(items, path):
-    with open(path, 'a', newline='') as file:
+    with open(path, 'w', newline='') as file:
         writer = csv.writer(file, delimiter=';')
         writer.writerow(['Название валюты', 'Код', 'Курс', 'Кол-во', 'Дата'])
         for item in items:
@@ -64,24 +64,15 @@ def print_data_2d(column_names, data):
     print(F'number of lines in database table is: {len(data)}')
 
 
-def write_current_db(cur_dict, path):  # создание db и запись в нее
-
-    def count_records(table, cursor):  # поиск элементов в таблице db
-        sql = F'SELECT COUNT(*) as count FROM {table}'
-        cursor.execute(sql)
-        id = cursor.fetchone()[0] + 1
-        return id
-
-    table = 'currencies'
-
+def write_current_db(cur_dict, path, table):  # создание db и запись в нее
     con = sqlite3.connect(path)
     cur = con.cursor()
 
-    query = F'CREATE TABLE IF NOT EXISTS {table} (id, usd_rate, eur_rate, byn_rate, date)'
+    query = F'CREATE TABLE IF NOT EXISTS {table} (id INTEGER PRIMARY KEY AUTOINCREMENT , usd_rate FLOAT, eur_rate FLOAT, byn_rate FLOAT, date)'
     cur.execute(query)
     con.commit()
 
-    query = F'INSERT INTO {table} VALUES ({count_records(table, cur)},{cur_dict["USD"]},{cur_dict["EUR"]},{cur_dict["RUB"]},"{date}")'
+    query = F'INSERT INTO {table}(usd_rate, eur_rate, byn_rate, date) VALUES ({cur_dict["USD"]},{cur_dict["EUR"]},{cur_dict["RUB"]},"{date}")'
     cur.execute(query)
     con.commit()
     con.close()
@@ -93,9 +84,9 @@ def sqlite_read_db(path, table, column_name=None):
     """
     con = sqlite3.connect(path)
     cur = con.cursor()
-    query_columns = 'PRAGMA table_info(' + table + ')'
+    query_columns = F'PRAGMA table_info({table})'
     cur.execute(query_columns)
-    column_descriptions = cur.fetchall()  # fetcone() - считывает одну запись
+    column_descriptions = cur.fetchall()
     column_names = []
     for column in column_descriptions:
         column_names.append(column[1])
@@ -112,6 +103,7 @@ def sqlite_read_db(path, table, column_name=None):
         for el in data:
             new_data.append(el[0])
         data = new_data
+        column_names = column_name
         del (new_data)
 
     cur.close()
@@ -120,14 +112,19 @@ def sqlite_read_db(path, table, column_name=None):
 
 
 def main():
+    table = 'currencies'
     html = get_html(URL)
     res = get_content(html)
     save_doc(res, CSV)
     currency_dict = get_currencies(html)
-    write_current_db(currency_dict, db_path)
+    write_current_db(currency_dict, db_path, table)
+
+def read_db():
     table = 'currencies'
+    column_name = 'usd_rate'
     sqlite_read_db(db_path, table)
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    read_db()
